@@ -18,6 +18,8 @@ anvil --slots-in-an-epoch 1 &
 caddy stop
 # start caddyserver
 caddy start
+# install dependencies
+forge install
 # deploy the contract and mint one nft
 forge script script/NFT.s.sol:MyScript --fork-url http://localhost:8545 --broadcast
 dfx stop
