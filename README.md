@@ -148,6 +148,38 @@ pub async fn job(event_source: LogSource, event: LogEntry) {
 }
 ```
 
+`generate_and_store_metadata` and `generate_and_store_image` both use stable memory – in particular the [`ic-stable-structures`](https://github.com/dfinity/stable-structures/tree/main) crate – to store the metadata and image on-chain. You can read more about stable memory – which currently gives canister on the ICP access to 400 GiB of storage – [here](https://internetcomputer.org/docs/current/developer-docs/smart-contracts/maintain/storage/) and find the implementation in `src/chainfusion_backend/src/storage.rs`.
+
+The metadata and image for the NFT are [served to the web](https://internetcomputer.org/how-it-works/smart-contracts-serve-the-web/) (e.g. browsers) via [HTTP](https://internetcomputer.org/docs/current/references/ic-interface-spec/#http-gateway) without any additional software or tooling necessary. You can find the logic for this in `src/chainfusion_backend/src/lib.rs`
+
+```rust
+#[ic_cdk::query]
+fn http_request(req: HttpRequest) -> HttpResponse {
+    // disable update calls for this method
+    if ic_cdk::api::data_certificate().is_none() {
+        ic_cdk::trap("update call rejected");
+    }
+
+    // check if the asset is in the stable memory
+    if let Some(asset) = storage::get_asset(&req.path().to_string()) {
+        let mut response_builder = HttpResponseBuilder::ok();
+
+        // Apply headers
+        for (key, value) in asset.headers {
+            response_builder = response_builder.header(key, value);
+        }
+
+        // Set body and content length, then build the response
+        response_builder
+            .with_body_and_content_length(asset.body)
+            .build()
+    } else {
+        // return 404
+        HttpResponseBuilder::not_found().build()
+    }
+}
+```
+
 ## Develop
 
 The Chainfusion canister has been structured in a way that all the coprocessing logic lives in `src/chainfusion_backend/src/job.rs` and developers don't need to recreate or touch the code responsible for fetching new events, creating signatures or sending transactions. They can solely focus on writing jobs to run upon receiving a new event from an EVM smart contract.
