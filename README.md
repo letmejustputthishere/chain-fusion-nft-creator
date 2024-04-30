@@ -1,8 +1,6 @@
-# [Chainfusion](https://internetcomputer.org/chainfusion) starter
+# On-chain metadata and asset generation for ERC721 NFTs
 
-## Join the discussion
-
-[![Join Discussion](https://img.shields.io/github/discussions/letmejustputthishere/chainfusion-starter)](https://github.com/letmejustputthishere/chainfusion-starter/discussions)
+This project is based on the [Chainfusion](https://internetcomputer.org/chainfusion) starter template.
 
 ## Get started:
 
@@ -14,10 +12,10 @@ No matter what setup you pick from below, run `./deploys.sh` from the project ro
 -   generate a number of jobs
 -   deploy the chainfusion canister
 
-If you want to check that the `chainfusion_backend` really processed the events, you can either look at the logs output by running `./deploy.sh` – keep an eye open for the `Successfully ran job` message – or you can call the EVM contract to get the results of the jobs.
-To do this, run `cast call --rpc-url=127.0.0.1:8545 0x5fbdb2315678afecb367f032d93f642f64180aa3  "getResult(uint)(string)" <job_id>` where `<job_id>` is the id of the job you want to get the result for. This should always return `"6765"` for processed jobs, which is the 20th fibonacci number, and `""` for unprocessed jobs.
+If you want to check that the `chainfusion_backend` really processed the events, you can either look at the logs output by running `./deploy.sh` – keep an eye open for the `Assets & Metadata successfully generated` message – or you can call the EVM contract to get the `tokenURI`.
+To do this, run `cast call --rpc-url=127.0.0.1:8545 0x5fbdb2315678afecb367f032d93f642f64180aa3  "tokenURI(uint256)(string)" <token_id>` where `<token_id>` is the id of the token you want to get the `tokenURI` for. This should return `"http://2222s-4iaaa-aaaaf-ax2uq-cai.localhost:4943/<token_id>"` for processed mints and `server returned an error response: error code 3: execution reverted: revert: NOT_MINTED` for unprocessed mints.
 
-If you want to create more jobs, simply run `cast send --rpc-url=127.0.0.1:8545 0x5fbdb2315678afecb367f032d93f642f64180aa3  "newJob()" --private-key=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 --value 0.01ether`.
+If you want to mint more NFTs, simply run `cast send --rpc-url=127.0.0.1:8545 0x5fbdb2315678afecb367f032d93f642f64180aa3  "mintTo(address)" <mint_to_address> --private-key=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80`.
 
 You can learn more about how to use cast [here](https://book.getfoundry.sh/reference/cast/).
 
@@ -38,15 +36,15 @@ Make sure that [Node.js](https://nodejs.org/en/) `>= 21`, [foundry](https://gith
 Run the following commands in a new, empty project directory:
 
 ```sh
-git clone https://github.com/letmejustputthishere/chainfusion-starter.git # Download this starter project
-cd chainfusion-starter # Navigate to the project directory
+git clone https://github.com/letmejustputthishere/chainfusion-nft-creator.git # Download this starter project
+cd chainfusion-nft-creator # Navigate to the project directory
 ```
 
 ## Overview
 
 This project demonstrates how to use the Internet Computer as a coprocessor for EVM smart contracts. The coprocessor listens to events emitted by an EVM smart contract, processes them, and optionally sends the results back. Note that way say EVM smart contracts, as you can not only interact with the Ethereum network, but other networks that are using the Ethereum Virtual Machine (EVM), such as Polygon and Avalanche.
 
-This is an early project and should be considered as a proof of concept. It is not production-ready and should not be used in production environments. There are quite some TODOs in the code which will be addressed over time. If you have any questions or suggestions, feel free to open an issue, start a [discussion](https://github.com/letmejustputthishere/chainfusion-starter/discussions) or reach out to me on the [DFINITY Developer Forum](https://forum.dfinity.org/u/cryptoschindler/summary) or [X](https://twitter.com/cryptoschindler).
+This is an early project based on the [Chainfusion](https://internetcomputer.org/chainfusion) starter template and should be considered as a proof of concept. It is not production-ready and should not be used in production environments. There are quite some TODOs in the code which will be addressed over time. If you have any questions or suggestions, feel free to open an issue, start a [discussion](https://github.com/letmejustputthishere/chainfusion-starter/discussions) or reach out to me on the [DFINITY Developer Forum](https://forum.dfinity.org/u/cryptoschindler/summary) or [X](https://twitter.com/cryptoschindler).
 
 ## What is a coprocessor?
 
@@ -82,63 +80,71 @@ For more context on how ICP can extend Ethereum, check out [this presentation](h
 
 ### EVM Smart contract
 
-The contract `Coprocessor.sol` emits an event `NewJob` when the `newJob` function is called. The `newJob` function transfers the ETH sent with the call to `newJob` to the account controlled by the `chainfusion_backend` canister and emits the event. We send ETH to the `chainfusion_backend` canister to pay for the processing of the job result and the transaction fees for sending the result back to the EVM smart contract.
+The contract `src/foundry/NFT.sol` is a simple implementation of a [ERC721 contract](https://eips.ethereum.org/EIPS/eip-721) that emits an `Transfer` event when the `mintTo` function is called. The `mintTo` function accepts an `address` argument that is used to decide the recipient of the minted NFT.
 
 ```solidity
-    function newJob() public payable {
-        // Require at least 0.01 ETH to be sent with the call
-        require(msg.value >= 0.01 ether, "Minimum 0.01 ETH not met");
-
-        // Forward the ETH received to the coprocessor address
-        // To pay for the submission of the job result back to the EVM
-        // contract.
-        (bool success, ) = coprocessor.call{value: msg.value}("");
-        require(success, "Failed to send Ether");
-
-        // Emit the new job event
-        emit NewJob(job_id);
-
-        // Increment job counter
-        job_id++;
+    function mintTo(address recipient) public payable returns (uint256) {
+        uint256 newItemId = ++currentTokenId;
+        // this emits the following event
+        // Transfer(address indexed _from, address indexed _to, uint256 indexed _tokenId);
+        _safeMint(recipient, newItemId);
+        return newItemId;
     }
 ```
 
-The contract also has a `callback` function that can only be called by the `chainfusion_backend` canister. This function is called by the `chainfusion_backend` canister to send the results of the processing back to the contract.
+The contract also has a `tokenURI` function that returns a distinct Uniform Resource Identifier (URI) for a given asset. The `_baseURI` that is passed as a constructor upon contract creation is set to the [URL of the chainfusion canister](https://internetcomputer.org/how-it-works/smart-contracts-serve-the-web/). The `tokenURI` function returns the base URI concatenated with the token ID and throws if `tokenId` is not a valid NFT.
 
 ```solidity
-    function callback(string calldata _result, uint256 _job_id) public {
-        require(
-            msg.sender == coprocessor,
-            "Only the coprocessor can call this function"
-        );
-        jobs[_job_id] = _result;
+    function tokenURI(uint256 tokenId)
+        public
+        view
+        virtual
+        override
+        returns (string memory)
+    {
+        if (ownerOf(tokenId) == address(0)) {
+            revert NonExistentTokenURI();
+        }
+        return
+            bytes(baseURI).length > 0
+                ? string(abi.encodePacked(baseURI, tokenId.toString()))
+                : "";
     }
 ```
 
-The source code of the contract can be found in `src/foundry/Coprocessor.sol`.
+The source code of the contract can be found in `src/foundry/NFT.sol`.
 
-For local deployment of the EVM smart contract and submitting transactions we use [foundry](https://github.com/foundry-rs/foundry). You can take a look at the steps needed to deploy the contract locally in the `deploy.sh` script which runs `script/Coprocessor.s.sol`. Make sure to check both files to understand the deployment process.
+For local deployment of the EVM smart contract and submitting transactions we use [foundry](https://github.com/foundry-rs/foundry). You can take a look at the steps needed to deploy the contract locally in the `deploy.sh` script which runs `script/NFT.s.sol`. Make sure to check both files to understand the deployment process.
 
 ### Chainfusion canister
 
-The `chainfusion_backend` canister listens to events emitted by the Ethereum smart contract by periodically calling the `eth_getLogs` RPC method via the [EVM RPC canister](https://github.com/internet-computer-protocol/evm-rpc-canister). When an event is received, the canister can do all kinds of synchronous and asynchronous processing. When the processing is done, the canister sends the results back by creating a transaction calling the `callback` function of the contract. The transaction is signed using threshold signatures and sent to the Ethereum network via the EVM RPC canister. You can learn more about how the EVM RPC canister works and how to integrate with it [here](https://internetcomputer.org/docs/current/developer-docs/multi-chain/ethereum/evm-rpc/overview).
+The `chainfusion_backend` canister listens to events emitted by the Ethereum smart contract by [periodically calling](https://internetcomputer.org/docs/current/developer-docs/smart-contracts/advanced-features/periodic-tasks/#timers) the `eth_getLogs` RPC method via the [EVM RPC canister](https://github.com/internet-computer-protocol/evm-rpc-canister). When an event is received, the canister can do all kinds of synchronous and asynchronous processing. In this project, the chainfusion canister leverages the [unbiasable randomness](https://internetcomputer.org/docs/current/developer-docs/smart-contracts/advanced-features/randomness/) provided by the ICP to randomly generate metadata and assets for an NFT – fully on-chain. You can learn more about how the EVM RPC canister works and how to integrate with it [here](https://internetcomputer.org/docs/current/developer-docs/multi-chain/ethereum/evm-rpc/overview).
 
-The logic for the job that is run on each event can be found in `src/chainfusion_backend/job.rs`. The job is a simple example that just calculates fibonacci numbers. You can replace this job with any other job you want to run on each event. The reason we picked this job is that it is computationally expensive and can be used to demonstrate the capabilities of the ICP as a coprocessor. Calculating the 20th fibonacci number wouldn't be possible on the EVM due to gas limits, but it is possible on the ICP.
+The logic for the job that is run on each event can be found in `src/chainfusion_backend/job.rs`. You can find the code for the generators in `src/chainfusion_backend/src/job/generators.rs`.
 
 ```rust
 pub async fn job(event_source: LogSource, event: LogEntry) {
     mutate_state(|s| s.record_processed_log(event_source.clone()));
     // because we deploy the canister with topics only matching
-    // NewJob events we can safely assume that the event is a NewJob.
-    let new_job_event = NewJobEvent::from(event);
-    // this calculation would likely exceed an ethereum blocks gas limit
-    // but can easily be calculated on the IC
-    let result = fibonacci(20);
-    // we write the result back to the evm smart contract, creating a signature
-    // on the transaction with chain key ecdsa and sending it to the evm via the
-    // evm rpc canister
-    submit_result(result.to_string(), new_job_event.job_id).await;
-    println!("Successfully ran job #{:?}", &new_job_event.job_id);
+    // Transfer events with the from topic set to the zero address
+    // we can safely assume that the event is a mint event.
+    let mint_event = MintEvent::from(event);
+    // we get secure random bytes from the IC to seed the RNG
+    // for every mint event.
+    // you can read more [here](https://internetcomputer.org/docs/current/developer-docs/smart-contracts/advanced-features/randomness/)
+    let random_bytes = get_random_bytes().await;
+    let mut rng = ChaCha20Rng::from_seed(random_bytes);
+    // using th random number generator seeded with the on-chain random bytes
+    // we generate our attributes for the NFT
+    let attributes = generate_attributes(&mut rng);
+    // based on the attributes we generate and store the opensea compliant
+    // metadata in the canisters stable memory.
+    // canister can currently access 400GB of mutable on-chain storage, you can read more about
+    // this feature [here](https://internetcomputer.org/docs/current/developer-docs/smart-contracts/maintain/storage/).
+    generate_and_store_metadata(&mint_event, &attributes);
+    // last, based on the attributes we generate and store the image in the canisters stable memory.
+    generate_and_store_image(&mint_event, &attributes);
+    println!("Assets & Metadata successfully generated: http://2222s-4iaaa-aaaaf-ax2uq-cai.localhost:4943/{:?}", &mint_event.token_id);
 }
 ```
 
@@ -146,15 +152,15 @@ pub async fn job(event_source: LogSource, event: LogEntry) {
 
 The Chainfusion canister has been structured in a way that all the coprocessing logic lives in `src/chainfusion_backend/src/job.rs` and developers don't need to recreate or touch the code responsible for fetching new events, creating signatures or sending transactions. They can solely focus on writing jobs to run upon receiving a new event from an EVM smart contract.
 
-You can find the full flow in the following sequence diagram with Ethereum as an example EVM chain (note that this flow can be applied to any EVM chain):
+You can find the full flow for this use-case in the following sequence diagram with Ethereum as an example EVM chain (note that this flow can be applied to any EVM chain):
 
-![image](https://github.com/letmejustputthishere/chainfusion-starter/assets/32162112/22272844-016c-43a0-a087-a861e930726c)
+![image](https://github.com/letmejustputthishere/chainfusion-nft-creator/assets/32162112/d8e8520b-8676-4dd3-aa96-b6bcc790897b)
 
 ## Chainfusion starter use-cases
 
 Here you can find a number of examples leveraging the Chainfusion starter logic:
 
--   On-chain asset and metadata creation for ERC721 NFT contracts
+-   On-chain asset and metadata creation for ERC721 NFT contracts (this project)
 
 Build your own use-case on top of the Chainfusion starter and [share it with the community](https://github.com/letmejustputthishere/chainfusion-starter/discussions/10)! Some ideas you could explore:
 
