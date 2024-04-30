@@ -1,6 +1,6 @@
 # On-chain metadata and asset generation for ERC721 NFTs
 
-This project is based on the [Chainfusion](https://internetcomputer.org/chainfusion) starter template.
+This project is based on the [Chainfusion](https://github.com/letmejustputthishere/chainfusion-starter) starter template.
 
 ## Get started:
 
