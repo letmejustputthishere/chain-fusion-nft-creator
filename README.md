@@ -74,6 +74,38 @@ Furthermore, canister smart contracts have many capabilities and properties that
 
 For more context on how ICP can extend Ethereum, check out [this presentation](https://docs.google.com/presentation/d/1P9wycxRsJ6DM_c8TbZG4Xun5URYZbk3WALS4UpSH0iA/edit?usp=sharing) from EthereumZuri 2024.
 
+## Problem
+
+There are a number of ways of generating and storing metadata for Ethereum NFTs
+
+**Generating**
+
+-   generate metadata off chain
+    -   if metadata is revealed (therefore `baseURI` is set) after the collection sold out, devs can arbitrarily assign rare NFTs to their addresses)
+        -   like azuki for example ([metadata](https://ipfs.io/ipfs/QmZcH4YvBVVRJtdn4RdbaqgspFU8gH6P9vomDpBVpAL3u4/852), [assets](https://ipfs.io/ipfs/QmYDvPAXtiJg7s8JdRBSLWdgSphQdac8j1YuQNNxcGE1hg/852.png))
+    -   if metadata is public during launch, minting process can be frontrunned to only mint rare NFTs
+    -   you can use the block hash of the block that contains the reveal transaction as an input to a [previously released shuffle function](https://github.com/visualizevalue-dev/opepens-metadata-api/tree/main/drops/sets)
+        -   only drawback is that collection could collude with miner to change block hash in a favorable way, or miner itself has incentive to do so
+        -   still the team could use the time between reveal and metadata upgrades as they have access to the [reveal secret](https://twitter.com/0xCygaar/status/1682405215713251328)
+-   generate metadata on chain
+    -   too expensive
+    -   if done, access to unpredictable randomness is hard
+        -   this can be abused to only mint under conditions that produce rare nfts
+        -   you can use chainlink oracle for randomness, but its expensive
+    -   if done, external data (like the current btc price for example) cannot be included easily
+    -   if done, while generating the metadata itself might be feasible in some cases, generating a JPEG or SVG will most likely not be
+
+**Storing**
+
+-   point from `tokenURI` to IPFS (immutable)
+    -   metadata and assets are decentralised, but immutable
+-   point from `tokenURI` to centralised server (mutable, but centralised)
+    -   metadata and assets can be changed and rewritten, potentially in a nefarious way
+-   store metadata on chain (too expensive)
+    -   assets are decentralised and their mutability can be expressed in code
+
+The architecture describe in the following section solves the problem of generating and storing metadata and assets for NFTs in a decentralised and secure way, while still providing smart contract controlled mutability, if necessary.
+
 ## Architecture
 
 ![image](https://github.com/letmejustputthishere/chainfusion-starter/assets/32162112/7947d2f1-bbaa-4291-b089-2eb05c5d42df)
