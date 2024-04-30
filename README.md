@@ -13,11 +13,21 @@ No matter what setup you pick from below, run `./deploys.sh` from the project ro
 -   deploy the chainfusion canister
 
 If you want to check that the `chainfusion_backend` really processed the events, you can either look at the logs output by running `./deploy.sh` – keep an eye open for the `Assets & Metadata successfully generated` message – or you can call the EVM contract to get the `tokenURI`.
-To do this, run `cast call --rpc-url=127.0.0.1:8545 0x5fbdb2315678afecb367f032d93f642f64180aa3  "tokenURI(uint256)(string)" <token_id>` where `<token_id>` is the id of the token you want to get the `tokenURI` for. This should return `"http://2222s-4iaaa-aaaaf-ax2uq-cai.localhost:4943/<token_id>"` for processed mints and `server returned an error response: error code 3: execution reverted: revert: NOT_MINTED` for unprocessed mints.
+To do this, run
 
-If you want to mint more NFTs, simply run `cast send --rpc-url=127.0.0.1:8545 0x5fbdb2315678afecb367f032d93f642f64180aa3  "mintTo(address)" <mint_to_address> --private-key=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80`.
+```bash
+cast call --rpc-url=127.0.0.1:8545 0x5fbdb2315678afecb367f032d93f642f64180aa3  "tokenURI(uint256)(string)" <token_id>`
+```
 
-You can learn more about how to use cast [here](https://book.getfoundry.sh/reference/cast/).
+where `<token_id>` is the id of the token you want to get the `tokenURI` for. This should return `"http://2222s-4iaaa-aaaaf-ax2uq-cai.localhost:4943/<token_id>"` for processed mints and `server returned an error response: error code 3: execution reverted: revert: NOT_MINTED` for unprocessed mints.
+
+If you want to mint more NFTs, simply run
+
+```bash
+cast send --rpc-url=127.0.0.1:8545 0x5fbdb2315678afecb367f032d93f642f64180aa3  "mintTo(address)" <mint_to_address> --private-key=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80`
+```
+
+You can learn more about how to use `cast` [here](https://book.getfoundry.sh/reference/cast/).
 
 ### In the cloud:
 
