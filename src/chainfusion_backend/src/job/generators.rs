@@ -2,6 +2,7 @@ use super::distribution::SVG_COLOR_KEYWORDS;
 use super::distribution::WEIGHTS;
 use super::MintEvent;
 use crate::{evm_rpc::RpcServices, storage::store_asset};
+use ethers_core::types::U256;
 use rand::distributions::{Distribution, WeightedIndex};
 use rand_chacha::ChaCha20Rng;
 use serde::{Deserialize, Serialize};
@@ -93,7 +94,7 @@ pub fn generate_and_store_image(mint_event: &MintEvent, attributes: &Attributes)
     );
 }
 
-pub fn generate_and_store_metadata(mint_event: &MintEvent, attributes: &Attributes) {
+fn generate_image_url(token_id: U256) -> String {
     // get RpcService from state
     let rpc_services = crate::state::read_state(|s| s.rpc_services.clone());
     let is_local_rpc = match rpc_services {
@@ -112,23 +113,26 @@ pub fn generate_and_store_metadata(mint_event: &MintEvent, attributes: &Attribut
         }
         _ => false,
     };
-    let image_url = if is_local_rpc {
+    if is_local_rpc {
         format!(
             "http://{}.localhost:4943/{}.svg",
             ic_cdk::id().to_text(),
-            &mint_event.token_id
+            &token_id
         )
     } else {
         format!(
             "https://{}.raw.icp0.io/{}.svg",
             ic_cdk::id().to_text(),
-            &mint_event.token_id
+            &token_id
         )
-    };
+    }
+}
+
+pub fn generate_and_store_metadata(mint_event: &MintEvent, attributes: &Attributes) {
     // create JSON metadata with serde_json
     let metadata = json!({
         "name": format!("Chainfusion #{}", mint_event.token_id),
-        "image": image_url,
+        "image": generate_image_url(mint_event.token_id),
         "attributes" : attributes.to_trait_list(),
     });
     // Serialize the JSON value to a Vec<u8>
