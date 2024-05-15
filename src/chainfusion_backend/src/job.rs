@@ -41,17 +41,12 @@ pub async fn job(event_source: LogSource, event: LogEntry) {
 // This function asynchronously retrieves a random byte array of length 32.
 async fn get_random_bytes() -> [u8; 32] {
     // Call the `raw_rand` function and await its result.
-    let (raw_rand,): (Vec<u8>,) = raw_rand()
-        .await
-        .unwrap_or_else(|_e| ic_cdk::trap("call to raw_rand failed"));
+    let (raw_rand,) = raw_rand().await.expect("calls to raw_rand should not fail");
 
     // Convert the obtained byte vector into a fixed-size array of length 32.
-    let raw_rand_32_bytes: [u8; 32] = raw_rand
+    raw_rand
         .try_into()
-        .unwrap_or_else(|_e| panic!("raw_rand not 32 bytes"));
-
-    // Return the resulting 32-byte array.
-    raw_rand_32_bytes
+        .expect("raw_rand should contain 32 bytes")
 }
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
