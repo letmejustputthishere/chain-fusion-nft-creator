@@ -122,15 +122,22 @@ The architecture describe in the following section solves the problem of generat
 
 ### EVM Smart contract
 
-The contract `src/foundry/NFT.sol` is a simple implementation of a [ERC721 contract](https://eips.ethereum.org/EIPS/eip-721) that emits an `Transfer` event when the `mintTo` function is called. The `mintTo` function accepts an `address` argument that is used to decide the recipient of the minted NFT.
+The contract `src/foundry/NFT.sol` is a simple implementation of a [ERC721 contract](https://eips.ethereum.org/EIPS/eip-721) that emits an `Transfer` event when the `mintTo` function is called. The `mintTo` function accepts an `address` argument that is used to decide the recipient of the minted NFT and requires a payment of `MINT_PRICE` ETH. The `MINT_PRICE` is set to `0.08 ether` and the `TOTAL_SUPPLY` is set to `10_000`.
 
 ```solidity
     function mintTo(address recipient) public payable returns (uint256) {
-        uint256 newItemId = ++currentTokenId;
+        if (msg.value != MINT_PRICE) {
+            revert MintPriceNotPaid();
+        }
+        uint256 newTokenId = currentTokenId + 1;
+        if (newTokenId > TOTAL_SUPPLY) {
+            revert MaxSupply();
+        }
+        currentTokenId = newTokenId;
         // this emits the following event
         // Transfer(address indexed _from, address indexed _to, uint256 indexed _tokenId);
-        _safeMint(recipient, newItemId);
-        return newItemId;
+        _safeMint(recipient, newTokenId);
+        return newTokenId;
     }
 ```
 

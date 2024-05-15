@@ -136,12 +136,8 @@ pub fn generate_and_store_metadata(mint_event: &MintEvent, attributes: &Attribut
         "attributes" : attributes.to_trait_list(),
     });
     // Serialize the JSON value to a Vec<u8>
-    let byte_vec: Vec<u8> = match to_vec(&metadata) {
-        Ok(vec) => vec,
-        Err(_) => {
-            ic_cdk::trap("Failed to serialize JSON");
-        }
-    };
+    let byte_vec = to_vec(&metadata).expect("json should be serializable to byte vector");
+
     store_asset(
         format!("/{}", mint_event.token_id),
         crate::storage::Asset {

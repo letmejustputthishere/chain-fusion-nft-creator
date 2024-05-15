@@ -23,7 +23,7 @@ contract MyScript is Script {
         // the address we mint to belongs to the deployerPrivateKey
         // again, the transaction is signed with the deployerPrivateKey
         for (uint256 index = 0; index < 10; index++) {
-            nft.mintTo(0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266);
+            nft.mintTo{value: 0.08 ether}(0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266);
         }
 
         vm.stopBroadcast();
