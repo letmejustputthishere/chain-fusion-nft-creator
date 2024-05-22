@@ -1,6 +1,9 @@
 # On-chain metadata and asset generation for ERC721 NFTs
 
 This project is based on the [Chainfusion](https://github.com/letmejustputthishere/chainfusion-starter) starter template.
+Watch the workshop from DappCon24 to learn more about how it was built.
+[![DappCon24](https://github.com/letmejustputthishere/chain-fusion-starter/assets/32162112/aed157f4-8677-4556-891f-4295f641a01c)](https://www.youtube.com/live/Zm3vFqbLV_Y?t=863s
+)
 
 ## Get started:
 
