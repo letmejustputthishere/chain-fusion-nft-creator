@@ -11,7 +11,7 @@ use crate::evm_rpc::{BlockTag, RpcServices};
 pub struct InitArg {
     pub rpc_services: RpcServices,
     pub get_logs_address: Vec<String>,
-    pub get_logs_topics: Option<Vec<Vec<String>>>,
+    pub get_logs_topics: Vec<Option<Vec<Vec<String>>>>,
     pub last_scraped_block_number: Nat,
     pub ecdsa_key_id: EcdsaKeyId,
     pub block_tag: BlockTag,
@@ -37,9 +37,11 @@ impl TryFrom<InitArg> for State {
             })?;
         }
         // validate get_logs topics
-        if let Some(topics) = &get_logs_topics {
-            for topic in topics {
-                validate_topics(topic)?;
+        for topics in &get_logs_topics {
+            if let Some(topics) = &topics {
+                for topic in topics {
+                    validate_topics(topic)?;
+                }
             }
         }
 
