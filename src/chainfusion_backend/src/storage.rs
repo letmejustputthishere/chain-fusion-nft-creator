@@ -60,6 +60,11 @@ pub fn store_asset(path: String, asset: Asset) {
     ASSETS.with(|assets| assets.borrow_mut().insert(path, asset));
 }
 
+// Remove the asset from stable memory
+pub fn remove_asset(path: &String) {
+    ASSETS.with(|assets| assets.borrow_mut().remove(path));
+}
+
 /// Gets an assset from stable memory.
 /// Returns `None` if the asset is not found.
 /// Returns `Some(asset)` if the asset is found.

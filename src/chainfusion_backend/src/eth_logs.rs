@@ -31,15 +31,18 @@ async fn process_logs() {
     }
 }
 
-pub async fn get_logs(from: &Nat, to: &Nat) -> GetLogsResult {
+pub async fn get_logs(
+    from: &Nat,
+    to: &Nat,
+    topic_filter: &Option<Vec<Vec<String>>>,
+) -> GetLogsResult {
     let get_logs_address = read_state(|s| s.get_logs_address.clone());
-    let get_logs_topics = read_state(|s| s.get_logs_topics.clone());
     let rpc_services = read_state(|s| s.rpc_services.clone());
     let get_logs_args: GetLogsArgs = GetLogsArgs {
         fromBlock: Some(BlockTag::Number(from.clone())),
         toBlock: Some(BlockTag::Number(to.clone())),
         addresses: get_logs_address.to_vec(),
-        topics: get_logs_topics.clone(),
+        topics: topic_filter.clone(),
     };
 
     let cycles = 10_000_000_000;
@@ -72,44 +75,48 @@ async fn scrape_eth_logs_range_inclusive(from: &Nat, to: &Nat) -> Option<Nat> {
                 from, last_block_number
             );
 
-            let logs = loop {
-                match get_logs(from, &last_block_number).await {
-                    GetLogsResult::Ok(logs) => break logs,
-                    GetLogsResult::Err(e) => {
-                        println!(
-                          "Failed to get ETH logs from block {from} to block {last_block_number}: {e:?}",
-                      );
-                        match e {
-                            RpcError::HttpOutcallError(e) => {
-                                if e.is_response_too_large() {
-                                    if *from == last_block_number {
-                                        mutate_state(|s| {
-                                            s.record_skipped_block(last_block_number.clone());
-                                            s.last_scraped_block_number = last_block_number.clone();
-                                        });
-                                        return Some(last_block_number);
-                                    } else {
-                                        let new_last_block_number = from.clone().add(
-                                            last_block_number
-                                                .clone()
-                                                .sub(from.clone())
-                                                .div(Nat::from(2u32)),
-                                        );
-                                        println!( "Too many logs received in range [{from}, {last_block_number}]. Will retry with range [{from}, {new_last_block_number}]");
-                                        last_block_number = new_last_block_number;
-                                        continue;
+            let topic_filters = read_state(|s| s.get_logs_topics.clone());
+            for topic_filter in &topic_filters {
+                let logs = loop {
+                    match get_logs(from, &last_block_number, topic_filter).await {
+                        GetLogsResult::Ok(logs) => break logs,
+                        GetLogsResult::Err(e) => {
+                            println!(
+                              "Failed to get ETH logs from block {from} to block {last_block_number}: {e:?}",
+                          );
+                            match e {
+                                RpcError::HttpOutcallError(e) => {
+                                    if e.is_response_too_large() {
+                                        if *from == last_block_number {
+                                            mutate_state(|s| {
+                                                s.record_skipped_block(last_block_number.clone());
+                                                s.last_scraped_block_number =
+                                                    last_block_number.clone();
+                                            });
+                                            return Some(last_block_number);
+                                        } else {
+                                            let new_last_block_number = from.clone().add(
+                                                last_block_number
+                                                    .clone()
+                                                    .sub(from.clone())
+                                                    .div(Nat::from(2u32)),
+                                            );
+                                            println!( "Too many logs received in range [{from}, {last_block_number}]. Will retry with range [{from}, {new_last_block_number}]");
+                                            last_block_number = new_last_block_number;
+                                            continue;
+                                        }
                                     }
                                 }
+                                _ => return None,
                             }
-                            _ => return None,
                         }
-                    }
+                    };
                 };
-            };
 
-            for log_entry in logs {
-                println!("Received event {log_entry:?}",);
-                mutate_state(|s| s.record_log_to_process(&log_entry));
+                for log_entry in logs {
+                    println!("Received event {log_entry:?}",);
+                    mutate_state(|s| s.record_log_to_process(&log_entry));
+                }
             }
             if read_state(State::has_logs_to_process) {
                 println!("Found logs to process",);

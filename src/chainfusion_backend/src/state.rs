@@ -15,7 +15,7 @@ thread_local! {
 pub struct State {
     pub rpc_services: RpcServices,
     pub get_logs_address: Vec<String>,
-    pub get_logs_topics: Option<Vec<Vec<String>>>,
+    pub get_logs_topics: Vec<Option<Vec<Vec<String>>>>,
     pub last_scraped_block_number: Nat,
     pub last_observed_block_number: Option<Nat>,
     pub logs_to_process: BTreeMap<LogSource, LogEntry>,

@@ -18,10 +18,6 @@ anvil --slots-in-an-epoch 1 &
 caddy stop
 # start caddyserver
 caddy start
-# install dependencies
-forge install
-# deploy the contract and mint one nft
-forge script script/NFT.s.sol:MyScript --fork-url http://localhost:8545 --broadcast
 dfx stop
 # Find process IDs listening on port 4943 (dfx)
 dfx=$(lsof -t -i:4943)
@@ -40,18 +36,27 @@ dfx deploy evm_rpc
 # the `get_logs_address` here. in our case we are listening for mint events,
 # that is transfer events with the `from` field being the zero address.
 # you can read more about event signatures [here](https://docs.alchemy.com/docs/deep-dive-into-eth_getlogs#what-are-event-signatures)
-dfx deploy chainfusion_backend --with-cycles 10_000_000_000_000 --argument '(
+cargo build --release --target wasm32-unknown-unknown --package chainfusion_backend
+dfx canister create --with-cycles 10_000_000_000_000 chainfusion_backend
+dfx canister install --wasm target/wasm32-unknown-unknown/release/chainfusion_backend.wasm chainfusion_backend --argument '(
   record {
     ecdsa_key_id = record {
       name = "dfx_test_key";
       curve = variant { secp256k1 };
     };
-    get_logs_topics = opt vec {
-      vec {
-        "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
+    get_logs_topics = vec { 
+      opt vec {
+        vec {
+          "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
+        };
+        vec {
+          "0x0000000000000000000000000000000000000000000000000000000000000000";
+        };
       };
-      vec {
-        "0x0000000000000000000000000000000000000000000000000000000000000000";
+      opt vec {
+        vec {
+          "0xf8e1a15aba9398e019f0b49df1a4fde98ee17ae345cb5f6b5e2c27f5033e8ce7";
+        };
       };
     };
     last_scraped_block_number = 0: nat;
@@ -65,3 +70,9 @@ dfx deploy chainfusion_backend --with-cycles 10_000_000_000_000 --argument '(
     block_tag = variant { Latest = null };
   },
 )'
+# sleep for 3 seconds to allow the evm address to be generated
+sleep 3
+# safe the chain_fusion canisters evm address
+export EVM_ADDRESS=$(dfx canister call chainfusion_backend get_evm_address | awk -F'"' '{print $2}')
+# deploy the contract and mint one nft
+forge script script/NFT.s.sol:MyScript --fork-url http://localhost:8545 --broadcast --sig "run(address)" $EVM_ADDRESS
